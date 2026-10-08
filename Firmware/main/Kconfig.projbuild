@@ -1,0 +1,149 @@
+menu "Move2 Connectivity"
+
+config MOVE2_USE_LTE
+    bool "Use LTE/PPP instead of Wi-Fi"
+    default y
+
+config MOVE2_LTE_APN
+    string "LTE APN"
+    default "java.claro.com.br"
+
+config MOVE2_LTE_APN_USER
+    string "LTE APN user"
+    default "Claro"
+
+config MOVE2_LTE_APN_PASS
+    string "LTE APN password"
+    default "Claro"
+
+config MOVE2_LTE_CONNECT_TIMEOUT_MS
+    int "LTE PPP IP timeout in ms"
+    default 60000
+    range 10000 180000
+
+config MOVE2_MQTT_URI
+    string "MQTT broker URI"
+    default "mqtts://eaa7d5aa.ala.eu-central-1.emqxsl.com:8883"
+    help
+        Use mqtts://host:8883 for TLS MQTT, or mqtt://host:1883 for plain TCP.
+        A device on LTE can only reach brokers exposed on the public internet
+        or through a TCP tunnel/VPS.
+
+config MOVE2_MQTT_USERNAME
+    string "MQTT username"
+    default "modcs"
+
+config MOVE2_MQTT_PASSWORD
+    string "MQTT password"
+    default "12345678"
+
+endmenu
+
+menu "Move2 Motion and Trip"
+config MOVE2_BODY_X_AXIS
+    int "Sensor axis pointing forward (+/-1=X, +/-2=Y, +/-3=Z)"
+    default 1
+    range -3 3
+config MOVE2_BODY_Y_AXIS
+    int "Sensor axis pointing left"
+    default 2
+    range -3 3
+config MOVE2_BODY_Z_AXIS
+    int "Sensor axis pointing up"
+    default 3
+    range -3 3
+    help
+        Axes must be distinct, nonzero, and form a right-handed rotation.
+        Invalid mapping disables derived motion; raw recording continues.
+config MOVE2_BRAKING_THRESHOLD_TENTHS
+    int "Experimental braking threshold (tenths of m/s2)"
+    default 30
+    range 10 100
+config MOVE2_IMPACT_THRESHOLD_TENTHS_G
+    int "Experimental impact threshold (tenths of g)"
+    default 25
+    range 15 70
+config MOVE2_FALL_TILT_DEG
+    int "Experimental possible-fall tilt threshold (degrees)"
+    default 60
+    range 30 85
+endmenu
+
+menu "Move2 Hardware Pins"
+
+config MOVE2_CAN_TX_GPIO
+    int "CAN/TWAI TX GPIO"
+    default 23
+    range 0 39
+    help
+        GPIO26 and GPIO27 are reserved for the A7670G modem UART.
+        GPIO23 is exposed on the board header and is free after disabling the
+        optional GPS PPS input.
+
+config MOVE2_CAN_RX_GPIO
+    int "CAN/TWAI RX GPIO"
+    default 36
+    range 0 39
+    help
+        GPIO36 is input-only, which is valid for TWAI RX when driven by a CAN
+        transceiver.
+
+config MOVE2_CAN_BITRATE
+    int "CAN/TWAI bitrate"
+    default 500000
+    range 10000 1000000
+
+endmenu
+
+menu "Move2 Local Recording"
+
+config MOVE2_SD_QUEUE_LENGTH
+    int "SD acquisition queue (records)"
+    default 128
+    range 32 512
+    help
+        Each record uses about 216 bytes of RAM. A larger queue absorbs longer
+        card stalls but does not compensate for insufficient sustained throughput.
+
+config MOVE2_SD_SYNC_MS
+    int "Maximum batch collection time before fsync (ms)"
+    default 250
+    range 50 2000
+
+config MOVE2_SD_MISO_WAIT_MS
+    int "SD pre-command MISO wait on dedicated SPI2 bus (ms)"
+    default 1
+    range 1 40
+    help
+        The IDF default is 40 ms before each command, with CS inactive. A low
+        idle MISO can consume this timeout even when card commands succeed.
+        SPI2 is dedicated to the SD in this project. This setting does not
+        change the busy checks during or after card writes. Restore 40 if
+        other SPI slaves are added and review bus sharing/pull-up wiring.
+
+config MOVE2_SD_FILE_MB
+    int "Rotate local log at this size (MiB)"
+    default 64
+    range 1 512
+
+choice MOVE2_IMU_RATE
+    prompt "BMI323 acquisition output data rate"
+    default MOVE2_IMU_100HZ
+    help
+        Start at 100 Hz. Check SD queue, dropped records and estimated missed
+        IMU samples under LTE load before selecting 200 or 400 Hz.
+config MOVE2_IMU_100HZ
+    bool "100 Hz"
+config MOVE2_IMU_200HZ
+    bool "200 Hz"
+config MOVE2_IMU_400HZ
+    bool "400 Hz"
+endchoice
+
+config MOVE2_IMU_ODR_HZ
+    int
+    default 400 if MOVE2_IMU_400HZ
+    default 200 if MOVE2_IMU_200HZ
+    default 100
+
+endmenu
